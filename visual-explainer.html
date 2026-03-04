@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Social Video Archiver</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Azeret+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+    --font-mono: 'Azeret Mono', 'SF Mono', Consolas, monospace;
+
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --surface2: #eef0f4;
+    --surface-elevated: #fff;
+    --border: rgba(0, 0, 0, 0.06);
+    --border-bright: rgba(0, 0, 0, 0.13);
+    --text: #181d27;
+    --text-dim: #6b7280;
+
+    --teal: #0891b2;
+    --teal-dim: rgba(8, 145, 178, 0.07);
+    --slate: #334155;
+    --slate-dim: rgba(51, 65, 85, 0.06);
+    --coral: #dc2626;
+    --coral-dim: rgba(220, 38, 38, 0.06);
+    --amber: #d97706;
+    --amber-dim: rgba(217, 119, 6, 0.07);
+    --green: #059669;
+    --green-dim: rgba(5, 150, 105, 0.07);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1118;
+      --surface: #181b24;
+      --surface2: #21252f;
+      --surface-elevated: #242830;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-bright: rgba(255, 255, 255, 0.12);
+      --text: #e8eaef;
+      --text-dim: #8b919e;
+
+      --teal: #22d3ee;
+      --teal-dim: rgba(34, 211, 238, 0.1);
+      --slate: #94a3b8;
+      --slate-dim: rgba(148, 163, 184, 0.08);
+      --coral: #f87171;
+      --coral-dim: rgba(248, 113, 113, 0.08);
+      --amber: #fbbf24;
+      --amber-dim: rgba(251, 191, 36, 0.08);
+      --green: #34d399;
+      --green-dim: rgba(52, 211, 153, 0.08);
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse at 30% 0%, var(--teal-dim) 0%, transparent 50%),
+      radial-gradient(ellipse at 75% 95%, var(--slate-dim) 0%, transparent 40%);
+    color: var(--text);
+    font-family: var(--font-body);
+    padding: 48px 40px;
+    min-height: 100vh;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeScale {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .anim {
+    animation: fadeUp 0.45s ease-out both;
+    animation-delay: calc(var(--i, 0) * 0.07s);
+  }
+  .anim-scale {
+    animation: fadeScale 0.4s ease-out both;
+    animation-delay: calc(var(--i, 0) * 0.07s);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+    }
+  }
+
+  .container { max-width: 1000px; margin: 0 auto; }
+
+  /* ============ HERO ============ */
+  .hero { margin-bottom: 48px; }
+  .hero h1 {
+    font-size: 46px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+  .hero h1 .accent { color: var(--teal); }
+  .hero .tagline {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 18px;
+    letter-spacing: 0.3px;
+  }
+  .hero .lead {
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--text-dim);
+    max-width: 600px;
+  }
+  .hero .lead strong { color: var(--text); font-weight: 600; }
+
+  /* ============ PLATFORM GRID ============ */
+  .platforms {
+    margin-bottom: 48px;
+  }
+  .platform-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.8px;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+  }
+  .platform-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+    transition: border-color 0.2s;
+  }
+  .pill:hover { border-color: var(--border-bright); }
+  .pill--highlight {
+    border-color: var(--teal);
+    color: var(--teal);
+    background: var(--teal-dim);
+  }
+  .pill--more {
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  /* ============ HOW IT WORKS ============ */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .section-header .badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--teal);
+    background: var(--teal-dim);
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .section-header h2 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  /* ============ FLOW CARDS ============ */
+  .flow {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    gap: 0;
+    align-items: stretch;
+    margin-bottom: 48px;
+  }
+  .flow-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 20px;
+    position: relative;
+  }
+  .flow-card .fc-num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 10px;
+  }
+  .flow-card:nth-child(1) .fc-num { color: var(--teal); }
+  .flow-card:nth-child(3) .fc-num { color: var(--amber); }
+  .flow-card:nth-child(5) .fc-num { color: var(--green); }
+
+  .flow-card h3 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .flow-card p {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+  .flow-card code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--teal-dim);
+    color: var(--teal);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+  }
+  .flow-arrow svg {
+    width: 28px;
+    height: 28px;
+    fill: none;
+    stroke: var(--border-bright);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+
+  /* ============ MERMAID ============ */
+  .mermaid-wrap {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 24px;
+    overflow: auto;
+    margin-bottom: 48px;
+  }
+  .mermaid-wrap .mermaid {
+    display: flex;
+    justify-content: center;
+    transition: transform 0.2s ease;
+    transform-origin: top center;
+  }
+  .zoom-controls {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 2px;
+    z-index: 10;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px;
+  }
+  .zoom-controls button {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+  }
+  .zoom-controls button:hover {
+    background: var(--border);
+    color: var(--text);
+  }
+  .mermaid-wrap.is-zoomed { cursor: grab; }
+  .mermaid-wrap.is-panning { cursor: grabbing; user-select: none; }
+  .mermaid .nodeLabel {
+    font-family: var(--font-body) !important;
+    font-size: 14px !important;
+    color: var(--text) !important;
+  }
+  .mermaid .edgeLabel {
+    font-family: var(--font-mono) !important;
+    font-size: 11px !important;
+    color: var(--text-dim) !important;
+    background-color: var(--bg) !important;
+  }
+  .mermaid .edgeLabel rect { fill: var(--bg) !important; }
+
+  /* ============ FEATURES ============ */
+  .feat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 48px;
+  }
+  .feat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    transition: border-color 0.2s;
+  }
+  .feat-card:hover { border-color: var(--border-bright); }
+  .feat-card h4 {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .feat-card p {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .feat-card code {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    background: var(--teal-dim);
+    color: var(--teal);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* ============ QUICKSTART ============ */
+  .quickstart {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 48px;
+  }
+  .quickstart h3 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .qs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .qs-block {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .qs-block .qs-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--teal);
+    margin-bottom: 8px;
+  }
+  .qs-block .qs-cmd {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+  }
+  .qs-block .qs-note {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+
+  /* ============ FOOTER ============ */
+  .footer {
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+  .footer a {
+    color: var(--teal);
+    text-decoration: none;
+  }
+  .footer a:hover { text-decoration: underline; }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 768px) {
+    body { padding: 24px 16px; }
+    .hero h1 { font-size: 32px; }
+    .flow { grid-template-columns: 1fr; gap: 12px; }
+    .flow-arrow { transform: rotate(90deg); padding: 4px 0; }
+    .feat-grid { grid-template-columns: 1fr; }
+    .qs-grid { grid-template-columns: 1fr; }
+    .platform-pills { gap: 6px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero anim" style="--i:0">
+    <h1>Social Video <span class="accent">Archiver</span></h1>
+    <p class="tagline">urls.txt &rarr; organized local videos</p>
+    <p class="lead">
+      Batch download, rename, and optionally upload social media videos from
+      <strong>any platform</strong>. Powered by yt-dlp. Local-only by default,
+      with optional Google Drive upload.
+    </p>
+  </div>
+
+  <!-- PLATFORMS -->
+  <div class="platforms anim" style="--i:1">
+    <div class="platform-label">Supported Platforms</div>
+    <div class="platform-pills">
+      <span class="pill pill--highlight">TikTok</span>
+      <span class="pill pill--highlight">Instagram Reels</span>
+      <span class="pill pill--highlight">YouTube Shorts</span>
+      <span class="pill pill--highlight">Twitter / X</span>
+      <span class="pill">Facebook</span>
+      <span class="pill">Reddit</span>
+      <span class="pill">Vimeo</span>
+      <span class="pill">Twitch</span>
+      <span class="pill pill--more">+ 1000 more via yt-dlp</span>
+    </div>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div class="section-header anim" style="--i:2">
+    <span class="badge">PIPELINE</span>
+    <h2>How It Works</h2>
+  </div>
+
+  <div class="flow">
+    <div class="flow-card anim-scale" style="--i:3">
+      <div class="fc-num">01 INPUT</div>
+      <h3>URL List</h3>
+      <p>Plain text (one URL per line) or CSV file. Auto-detects <code>url</code>/<code>link</code> columns.</p>
+    </div>
+    <div class="flow-arrow anim" style="--i:4">
+      <svg viewBox="0 0 28 28"><path d="M6 14h16M18 8l6 6-6 6"/></svg>
+    </div>
+    <div class="flow-card anim-scale" style="--i:5">
+      <div class="fc-num">02 DOWNLOAD</div>
+      <h3>yt-dlp Engine</h3>
+      <p>Best-quality download with metadata extraction. Platform auto-detected from URL.</p>
+    </div>
+    <div class="flow-arrow anim" style="--i:6">
+      <svg viewBox="0 0 28 28"><path d="M6 14h16M18 8l6 6-6 6"/></svg>
+    </div>
+    <div class="flow-card anim-scale" style="--i:7">
+      <div class="fc-num">03 OUTPUT</div>
+      <h3>Named Files</h3>
+      <p>Renamed with template: <code>{creator}_{platform}_{date}_{id}</code>. Saved locally or uploaded to Drive.</p>
+    </div>
+  </div>
+
+  <!-- ARCHITECTURE DIAGRAM -->
+  <div class="section-header anim" style="--i:8">
+    <span class="badge">ARCHITECTURE</span>
+    <h2>System Flow</h2>
+  </div>
+
+  <div class="mermaid-wrap anim" style="--i:9">
+    <div class="zoom-controls">
+      <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+      <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+      <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+    </div>
+    <pre class="mermaid">
+      flowchart TD
+        A["urls.txt / urls.csv"] --> B["Parse Input\nDetect Format"]
+        B --> C["Extract URLs"]
+        C --> D["yt-dlp Download\nBest Quality"]
+        D --> E{"Success?"}
+        E -->|"yes"| F["Extract Metadata\ncreator, platform, date"]
+        E -->|"no"| G["Log Error\nContinue Next"]
+        F --> H["Apply Naming Template"]
+        H --> I{"Drive Upload?"}
+        I -->|"--drive-folder"| J["Upload to\nGoogle Drive"]
+        I -->|"local only"| K["Save to\nOutput Directory"]
+        J --> L["Log Result"]
+        K --> L
+        G --> L
+        L --> M{"More URLs?"}
+        M -->|"yes"| D
+        M -->|"done"| N["Summary Report"]
+
+        classDef teal fill:#0891b222,stroke:#0891b2,stroke-width:2px
+        classDef amber fill:#d9770622,stroke:#d97706,stroke-width:2px
+        classDef green fill:#05966922,stroke:#059669,stroke-width:2px
+        classDef red fill:#dc262622,stroke:#dc2626,stroke-width:1.5px
+
+        class A,B,C teal
+        class D,F,H amber
+        class J,K,N green
+        class G red
+    </pre>
+  </div>
+
+  <!-- FEATURES -->
+  <div class="section-header anim" style="--i:10">
+    <span class="badge">FEATURES</span>
+    <h2>Key Capabilities</h2>
+  </div>
+
+  <div class="feat-grid">
+    <div class="feat-card anim" style="--i:11">
+      <h4>Naming Templates</h4>
+      <p>Tokens: <code>{creator}</code> <code>{platform}</code> <code>{date}</code> <code>{id}</code> <code>{title}</code></p>
+    </div>
+    <div class="feat-card anim" style="--i:12">
+      <h4>CSV Auto-detect</h4>
+      <p>Finds url/link/video columns automatically. No manual column mapping needed.</p>
+    </div>
+    <div class="feat-card anim" style="--i:13">
+      <h4>Local-First</h4>
+      <p>Downloads to local folder by default. Drive upload is opt-in with <code>--drive-folder</code>.</p>
+    </div>
+    <div class="feat-card anim" style="--i:14">
+      <h4>Error Resilience</h4>
+      <p>Failed downloads are logged and skipped. The batch continues without stopping.</p>
+    </div>
+    <div class="feat-card anim" style="--i:15">
+      <h4>Multi-Platform</h4>
+      <p>Powered by yt-dlp. One tool handles every supported site with platform auto-detection.</p>
+    </div>
+    <div class="feat-card anim" style="--i:16">
+      <h4>Custom Output Dir</h4>
+      <p>Use <code>--output-dir</code> to save videos anywhere. Defaults to <code>./archived/</code>.</p>
+    </div>
+  </div>
+
+  <!-- QUICKSTART -->
+  <div class="quickstart anim" style="--i:17">
+    <h3>Quick Start</h3>
+    <div class="qs-grid">
+      <div class="qs-block">
+        <div class="qs-label">INSTALL</div>
+        <div class="qs-cmd">pip install yt-dlp</div>
+        <div class="qs-note">Core dependency. Google Drive deps only needed for upload.</div>
+      </div>
+      <div class="qs-block">
+        <div class="qs-label">BASIC USAGE</div>
+        <div class="qs-cmd">python social_video_archiver.py urls.txt</div>
+        <div class="qs-note">Downloads all URLs to ./archived/ with default naming.</div>
+      </div>
+      <div class="qs-block">
+        <div class="qs-label">CUSTOM NAMING</div>
+        <div class="qs-cmd">python social_video_archiver.py urls.txt \
+  --template "{platform}_{creator}_{date}"</div>
+      </div>
+      <div class="qs-block">
+        <div class="qs-label">WITH DRIVE UPLOAD</div>
+        <div class="qs-cmd">python social_video_archiver.py urls.csv \
+  --drive-folder FOLDER_ID</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer anim" style="--i:18">
+    <a href="https://github.com/prestigepromedia1/social-video-archiver">github.com/prestigepromedia1/social-video-archiver</a>
+    &nbsp;&middot;&nbsp; MIT License
+  </div>
+
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    look: 'classic',
+    themeVariables: {
+      primaryColor: isDark ? '#21252f' : '#f0f9ff',
+      primaryBorderColor: isDark ? '#22d3ee' : '#0891b2',
+      primaryTextColor: isDark ? '#e8eaef' : '#181d27',
+      secondaryColor: isDark ? '#2a2518' : '#fffbeb',
+      secondaryBorderColor: isDark ? '#fbbf24' : '#d97706',
+      secondaryTextColor: isDark ? '#e8eaef' : '#181d27',
+      tertiaryColor: isDark ? '#1a2e22' : '#ecfdf5',
+      tertiaryBorderColor: isDark ? '#34d399' : '#059669',
+      tertiaryTextColor: isDark ? '#e8eaef' : '#181d27',
+      lineColor: isDark ? '#8b919e' : '#6b7280',
+      fontSize: '14px',
+      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+    }
+  });
+</script>
+<script>
+  function updateZoomState(wrap) {
+    var target = wrap.querySelector('.mermaid');
+    var zoom = parseFloat(target.dataset.zoom || '1');
+    wrap.classList.toggle('is-zoomed', zoom > 1);
+  }
+  function zoomDiagram(btn, factor) {
+    var wrap = btn.closest('.mermaid-wrap');
+    var target = wrap.querySelector('.mermaid');
+    var current = parseFloat(target.dataset.zoom || '1');
+    var next = Math.min(Math.max(current * factor, 0.3), 5);
+    target.dataset.zoom = next;
+    target.style.transform = 'scale(' + next + ')';
+    updateZoomState(wrap);
+  }
+  function resetZoom(btn) {
+    var wrap = btn.closest('.mermaid-wrap');
+    var target = wrap.querySelector('.mermaid');
+    target.dataset.zoom = '1';
+    target.style.transform = 'scale(1)';
+    updateZoomState(wrap);
+  }
+  document.querySelectorAll('.mermaid-wrap').forEach(function(wrap) {
+    wrap.addEventListener('wheel', function(e) {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      var target = wrap.querySelector('.mermaid');
+      var current = parseFloat(target.dataset.zoom || '1');
+      var factor = e.deltaY < 0 ? 1.1 : 0.9;
+      var next = Math.min(Math.max(current * factor, 0.3), 5);
+      target.dataset.zoom = next;
+      target.style.transform = 'scale(' + next + ')';
+      updateZoomState(wrap);
+    }, { passive: false });
+    var startX, startY, scrollL, scrollT;
+    wrap.addEventListener('mousedown', function(e) {
+      if (e.target.closest('.zoom-controls')) return;
+      var target = wrap.querySelector('.mermaid');
+      if (parseFloat(target.dataset.zoom || '1') <= 1) return;
+      wrap.classList.add('is-panning');
+      startX = e.clientX; startY = e.clientY;
+      scrollL = wrap.scrollLeft; scrollT = wrap.scrollTop;
+    });
+    window.addEventListener('mousemove', function(e) {
+      if (!wrap.classList.contains('is-panning')) return;
+      wrap.scrollLeft = scrollL - (e.clientX - startX);
+      wrap.scrollTop = scrollT - (e.clientY - startY);
+    });
+    window.addEventListener('mouseup', function() {
+      wrap.classList.remove('is-panning');
+    });
+  });
+</script>
+
+</body>
+</html>
