@@ -12,6 +12,8 @@ import subprocess
 import sys
 import argparse
 import mimetypes
+import time
+import random
 from pathlib import Path
 from datetime import datetime
 from urllib.parse import urlparse
@@ -65,41 +67,165 @@ def extract_creator_from_url(url: str) -> str | None:
 # yt-dlp helpers
 # ---------------------------------------------------------------------------
 
-def run_ytdlp(args: list[str]) -> subprocess.CompletedProcess:
+def _detect_browser() -> str | None:
+    """Find a browser to pull cookies from (best anti-block measure).
+
+    Chrome locks its cookie DB while running, so we prefer Edge/Firefox first
+    (which don't have this issue), then try Chrome only if others fail.
+    """
+    # Edge and Firefox don't lock their cookie DB while running
+    for browser in ("edge", "firefox", "brave", "chrome"):
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "yt_dlp",
+                 "--cookies-from-browser", browser,
+                 "--skip-download", "--no-warnings",
+                 "https://www.example.com"],
+                capture_output=True, text=True, timeout=15,
+            )
+            stderr = result.stderr.lower()
+            # Skip if it can't copy the cookie DB (browser is running + locked)
+            if "could not copy" in stderr or "could not find" in stderr:
+                continue
+            if result.returncode == 0:
+                return browser
+        except Exception:
+            continue
+    return None
+
+
+# Detected once at startup, reused for every call
+_COOKIE_BROWSER: str | None = None
+_COOKIE_CHECKED = False
+_PROXY: str | None = None
+
+# Alternate TikTok API hostnames -- when the default is blocked, these
+# route through different CDN edges that may not be blocked yet.
+_TIKTOK_ALT_APIS = [
+    "api22-normal-c-alisg.tiktokv.com",
+    "api16-normal-c-useast2a.tiktokv.com",
+    "api19-normal-c-useast1a.tiktokv.com",
+]
+
+
+def configure_proxy(proxy: str | None):
+    """Set a proxy for all yt-dlp calls."""
+    global _PROXY
+    _PROXY = proxy
+
+
+def _stealth_args(use_cookies: bool = True) -> list[str]:
+    """Return yt-dlp flags that make requests look like a real browser."""
+    global _COOKIE_BROWSER, _COOKIE_CHECKED
+    args = [
+        "--user-agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "--referer", "https://www.tiktok.com/",
+        "--extractor-retries", "3",
+    ]
+    if _PROXY:
+        args += ["--proxy", _PROXY]
+    if not _COOKIE_CHECKED:
+        _COOKIE_CHECKED = True
+        _COOKIE_BROWSER = _detect_browser()
+        if _COOKIE_BROWSER:
+            print(f"  Using cookies from {_COOKIE_BROWSER} (anti-block)")
+        else:
+            print("  No browser cookies available -- using stealth headers only")
+        if _PROXY:
+            print(f"  Proxy: {_PROXY}")
+        print()
+    if use_cookies and _COOKIE_BROWSER:
+        args += ["--cookies-from-browser", _COOKIE_BROWSER]
+    return args
+
+
+def run_ytdlp(args: list[str], extra_args: list[str] | None = None) -> subprocess.CompletedProcess:
     """Run yt-dlp through the Python module entry-point."""
-    cmd = [sys.executable, "-m", "yt_dlp"] + args
+    cmd = [sys.executable, "-m", "yt_dlp"] + _stealth_args() + (extra_args or []) + args
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
 def fetch_metadata(url: str) -> dict:
-    """Use yt-dlp --print to grab uploader, id, and title without downloading."""
+    """Use yt-dlp --print to grab uploader, id, title, and upload_date."""
     result = run_ytdlp([
         "--print", "%(uploader)s",
         "--print", "%(id)s",
         "--print", "%(title)s",
+        "--print", "%(upload_date)s",
         "--skip-download",
         "--no-warnings",
         url,
     ])
     lines = result.stdout.strip().split("\n")
     return {
-        "uploader": lines[0] if len(lines) >= 1 and lines[0] else None,
-        "id": lines[1] if len(lines) >= 2 and lines[1] else None,
-        "title": lines[2] if len(lines) >= 3 and lines[2] else None,
+        "uploader": lines[0] if len(lines) >= 1 and lines[0] != "NA" else None,
+        "id": lines[1] if len(lines) >= 2 and lines[1] != "NA" else None,
+        "title": lines[2] if len(lines) >= 3 and lines[2] != "NA" else None,
+        "upload_date": lines[3] if len(lines) >= 4 and lines[3] != "NA" else None,
     }
 
 
-def download_video(url: str, output_dir: str) -> str | None:
-    """Download a video into *output_dir* and return the file path (or None)."""
+def _is_blocked_error(stderr: str) -> bool:
+    """Check if a yt-dlp error indicates IP/rate blocking."""
+    err = stderr.lower()
+    return any(s in err for s in (
+        "blocked", "unable to extract", "http error 403",
+        "http error 429", "http error 503", "rate limit",
+    ))
+
+
+def _try_download(url: str, template: str, extra_args: list[str] | None = None) -> subprocess.CompletedProcess:
+    """Single download attempt with optional extra yt-dlp args."""
+    return run_ytdlp(["-o", template, "--no-warnings", url], extra_args=extra_args)
+
+
+def download_video(url: str, output_dir: str, retries: int = 2) -> str | None:
+    """Download with multi-strategy fallback:
+
+    1. Standard yt-dlp with stealth headers
+    2. Retry with backoff (for transient blocks)
+    3. Alternate TikTok API endpoints (for persistent blocks)
+    """
     os.makedirs(output_dir, exist_ok=True)
     temp_template = os.path.join(output_dir, "tmp_%(id)s.%(ext)s")
 
-    result = run_ytdlp(["-o", temp_template, "--no-warnings", url])
-    if result.returncode != 0:
-        print(f"  yt-dlp error: {result.stderr.strip()}")
-        return None
+    # --- Strategy 1: Standard download with retries ---
+    last_err = ""
+    for attempt in range(1, retries + 2):
+        result = _try_download(url, temp_template)
+        if result.returncode == 0:
+            return _find_downloaded(output_dir)
+        last_err = result.stderr.strip()
+        if attempt <= retries and _is_blocked_error(last_err):
+            wait = attempt * 5 + random.randint(2, 8)
+            print(f"  Retry {attempt}/{retries} in {wait}s...")
+            time.sleep(wait)
+        elif not _is_blocked_error(last_err):
+            # Non-block error (e.g. video deleted) -- don't waste time retrying
+            print(f"  yt-dlp error: {last_err}")
+            return None
 
-    # Find the file that was written (yt-dlp may choose any extension)
+    # --- Strategy 2: Alternate TikTok API endpoints ---
+    is_tiktok = "tiktok" in url.lower()
+    if is_tiktok and _is_blocked_error(last_err):
+        for i, api_host in enumerate(_TIKTOK_ALT_APIS):
+            print(f"  Trying alternate endpoint {i+1}/{len(_TIKTOK_ALT_APIS)}...")
+            time.sleep(random.randint(2, 5))
+            extra = ["--extractor-args", f"tiktok:api_hostname={api_host}"]
+            result = _try_download(url, temp_template, extra_args=extra)
+            if result.returncode == 0:
+                return _find_downloaded(output_dir)
+            if not _is_blocked_error(result.stderr):
+                break  # Different error, stop trying alternates
+
+    print(f"  All download strategies exhausted")
+    return None
+
+
+def _find_downloaded(output_dir: str) -> str | None:
+    """Find the temp file that yt-dlp just wrote."""
     for f in sorted(os.listdir(output_dir)):
         if f.startswith("tmp_") and not f.endswith(".part"):
             return os.path.join(output_dir, f)
@@ -221,14 +347,25 @@ DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 
 
 def get_drive_service(credentials_path: str = "credentials.json",
-                      token_path: str = "token.pickle"):
+                      token_path: str = "token.json"):
     """Authenticate and return a Google Drive API service object."""
     Credentials, InstalledAppFlow, Request, build, _, pickle = _import_drive_deps()
 
     creds = None
+
+    # Prefer JSON token (modern), fall back to legacy pickle
     if os.path.exists(token_path):
-        with open(token_path, "rb") as token:
-            creds = pickle.load(token)
+        try:
+            from google.oauth2.credentials import Credentials as OAuthCreds
+            creds = OAuthCreds.from_authorized_user_file(token_path, DRIVE_SCOPES)
+        except Exception:
+            pass
+
+    if not creds:
+        pickle_path = token_path.replace(".json", ".pickle")
+        if os.path.exists(pickle_path):
+            with open(pickle_path, "rb") as f:
+                creds = pickle.load(f)
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
@@ -246,8 +383,9 @@ def get_drive_service(credentials_path: str = "credentials.json",
             flow = InstalledAppFlow.from_client_secrets_file(credentials_path, DRIVE_SCOPES)
             creds = flow.run_local_server(port=0)
 
-        with open(token_path, "wb") as token:
-            pickle.dump(creds, token)
+        # Save as JSON (modern format)
+        with open(token_path, "w") as f:
+            f.write(creds.to_json())
 
     return build("drive", "v3", credentials=creds)
 
@@ -267,6 +405,7 @@ def upload_to_drive(service, file_path: str, filename: str, folder_id: str):
         body=file_metadata,
         media_body=media,
         fields="id, webViewLink",
+        supportsAllDrives=True,
     ).execute()
 
     return result.get("id"), result.get("webViewLink")
@@ -323,8 +462,29 @@ def main():
         default=None,
         help="Temporary download directory (default: <output-dir>/.tmp)",
     )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=2.0,
+        help="Seconds to wait between downloads to avoid rate limits (default: 2)",
+    )
+    parser.add_argument(
+        "--retries",
+        type=int,
+        default=2,
+        help="Retry failed downloads N times with backoff (default: 2)",
+    )
+    parser.add_argument(
+        "--proxy",
+        default=None,
+        help="HTTP/SOCKS5 proxy for downloads (e.g. socks5://127.0.0.1:1080)",
+    )
 
     args = parser.parse_args()
+
+    # Configure proxy if provided
+    if args.proxy:
+        configure_proxy(args.proxy)
 
     # Resolve directories
     output_dir = os.path.abspath(args.output_dir)
@@ -363,7 +523,7 @@ def main():
 
     # --- Process each URL --------------------------------------------------
     results: list[dict] = []
-    date_str = datetime.now().strftime("%Y%m%d")
+    fallback_date = datetime.now().strftime("%Y%m%d")
 
     for i, url in enumerate(urls, 1):
         print(f"[{i}/{len(urls)}] {url[:80]}")
@@ -371,6 +531,7 @@ def main():
         creator = extract_creator_from_url(url)
         video_id = ""
         title = ""
+        date_str = fallback_date
 
         # Fetch metadata from yt-dlp
         try:
@@ -379,13 +540,16 @@ def main():
                 creator = meta["uploader"]
             video_id = meta.get("id") or ""
             title = meta.get("title") or ""
+            # Use post date if available (yt-dlp returns YYYYMMDD)
+            if meta.get("upload_date"):
+                date_str = meta["upload_date"]
         except Exception:
             pass
 
         creator = creator or "unknown"
 
-        # Download
-        video_path = download_video(url, download_dir)
+        # Download (with retry + backoff)
+        video_path = download_video(url, download_dir, retries=args.retries)
         if not video_path:
             print("  FAILED to download\n")
             results.append({
@@ -393,6 +557,9 @@ def main():
                 "filename": "", "status": "download_failed",
                 "drive_id": "", "link": "", "error": "yt-dlp download failed",
             })
+            # Still delay before next URL to cool down
+            if i < len(urls):
+                time.sleep(args.delay)
             continue
 
         ext = Path(video_path).suffix.lstrip(".")
@@ -450,6 +617,11 @@ def main():
         })
         print()
 
+        # Pace downloads to avoid rate limits
+        if i < len(urls):
+            jitter = random.uniform(0, args.delay * 0.5)
+            time.sleep(args.delay + jitter)
+
     # --- Cleanup temp dir --------------------------------------------------
     try:
         if os.path.isdir(download_dir) and not os.listdir(download_dir):
@@ -478,6 +650,17 @@ def main():
         print("\nFailed URLs:")
         for r in fail:
             print(f"  {r['url'][:70]}  ({r['status']})")
+
+    # --- Write retry file for failed downloads ----------------------------
+    download_fails = [r for r in results if r["status"] == "download_failed"]
+    if download_fails:
+        retry_name = f"retry_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        retry_path = os.path.join(output_dir, retry_name)
+        with open(retry_path, "w", encoding="utf-8") as f:
+            for r in download_fails:
+                f.write(r["url"] + "\n")
+        print(f"\n  {len(download_fails)} blocked URL(s) saved to: {retry_path}")
+        print("  Retry later from a different network, or with --proxy")
 
     # --- Write log ---------------------------------------------------------
     log_name = f"archive_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
