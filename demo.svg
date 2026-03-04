@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" font-family="'JetBrains Mono','SF Mono','Consolas',monospace" font-size="13">
+  <style>
+    .bg { fill: #1e1e2e; }
+    .chrome { fill: #313244; }
+    .title { fill: #cdd6f4; font-size: 13px; text-anchor: middle; }
+    .dot1 { fill: #f38ba8; }
+    .dot2 { fill: #f9e2af; }
+    .dot3 { fill: #a6e3a1; }
+    .prompt { fill: #89b4fa; }
+    .cmd { fill: #cdd6f4; }
+    .dim { fill: #6c7086; }
+    .accent { fill: #f9e2af; }
+    .green { fill: #a6e3a1; }
+    .cyan { fill: #89dceb; }
+    .file { fill: #bac2de; }
+    .line { opacity: 0; }
+
+    @keyframes appear {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .l1  { animation: appear 0.01s 0.3s both; }
+    .l2  { animation: appear 0.01s 0.8s both; }
+    .l3  { animation: appear 0.01s 1.0s both; }
+    .l4  { animation: appear 0.01s 1.4s both; }
+    .l5  { animation: appear 0.01s 1.8s both; }
+    .l6  { animation: appear 0.01s 2.2s both; }
+    .l7  { animation: appear 0.01s 2.6s both; }
+    .l8  { animation: appear 0.01s 3.0s both; }
+    .l9  { animation: appear 0.01s 3.4s both; }
+    .l10 { animation: appear 0.01s 3.8s both; }
+    .l11 { animation: appear 0.01s 4.2s both; }
+    .l12 { animation: appear 0.01s 4.6s both; }
+    .l13 { animation: appear 0.01s 5.0s both; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .line { opacity: 1; animation: none; }
+    }
+  </style>
+
+  <rect class="bg" width="800" height="400" rx="10"/>
+  <rect class="chrome" width="800" height="36" rx="10 10 0 0"/>
+  <circle class="dot1" cx="20" cy="18" r="6"/>
+  <circle class="dot2" cx="40" cy="18" r="6"/>
+  <circle class="dot3" cx="60" cy="18" r="6"/>
+  <text class="title" x="400" y="22">social-video-archiver</text>
+
+  <g transform="translate(20, 52)">
+    <text class="line l1">
+      <tspan class="dim">$</tspan>
+      <tspan class="cmd"> social-video-archiver urls.txt --template "{platform}_{creator}_{date}"</tspan>
+    </text>
+
+    <text y="28" class="line l2">
+      <tspan class="accent">Social Video Archiver</tspan>
+    </text>
+    <text y="48" class="line l3">
+      <tspan class="dim">  Output: ./archived/</tspan>
+    </text>
+
+    <text y="76" class="line l4">
+      <tspan class="cyan">  [1/4]</tspan>
+      <tspan class="dim"> tiktok.com/@coffeeshop/video/712345...</tspan>
+    </text>
+    <text y="96" class="line l5">
+      <tspan class="green">     -> tiktok_coffeeshop_20260304.mp4</tspan>
+    </text>
+
+    <text y="124" class="line l6">
+      <tspan class="cyan">  [2/4]</tspan>
+      <tspan class="dim"> instagram.com/reel/ABC123...</tspan>
+    </text>
+    <text y="144" class="line l7">
+      <tspan class="green">     -> instagram_brewmaster_20260304.mp4</tspan>
+    </text>
+
+    <text y="172" class="line l8">
+      <tspan class="cyan">  [3/4]</tspan>
+      <tspan class="dim"> youtube.com/shorts/dQw4w9W...</tspan>
+    </text>
+    <text y="192" class="line l9">
+      <tspan class="green">     -> youtube_latte-art_20260304.mp4</tspan>
+    </text>
+
+    <text y="220" class="line l10">
+      <tspan class="cyan">  [4/4]</tspan>
+      <tspan class="dim"> x.com/user/status/98765...</tspan>
+    </text>
+    <text y="240" class="line l11">
+      <tspan class="green">     -> twitter_roastery_20260304.mp4</tspan>
+    </text>
+
+    <text y="276" class="line l12">
+      <tspan class="green">Done! 4 downloaded, 0 failed</tspan>
+    </text>
+    <text y="296" class="line l13">
+      <tspan class="dim">Log: ./archived/download_log_20260304.csv</tspan>
+    </text>
+  </g>
+</svg>

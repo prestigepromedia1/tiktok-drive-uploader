@@ -2,6 +2,10 @@
 
 Batch download, rename, and optionally upload social media videos from any platform.
 
+<p align="center">
+  <img src="demo.svg" alt="Demo of social-video-archiver" width="750">
+</p>
+
 Works with **TikTok, Instagram Reels, YouTube Shorts, Twitter/X, Facebook, Reddit, Vimeo, Twitch**, and every other site supported by [yt-dlp](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
 
 ## Architecture
