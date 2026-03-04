@@ -1,87 +1,132 @@
-# TikTok Drive Uploader
+# Social Video Archiver
 
-Download TikTok videos from a CSV file, rename them with the creator's name, and upload directly to Google Drive.
+Batch download, rename, and optionally upload social media videos from any platform.
 
-## What It Does
+Works with **TikTok, Instagram Reels, YouTube Shorts, Twitter/X, Facebook, Reddit, Vimeo, Twitch**, and every other site supported by [yt-dlp](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
 
-1. Reads TikTok URLs from a CSV file
-2. Downloads each video using `yt-dlp`
-3. Renames to `TTS---CreatorName_YYYYMMDD_HHMMSS.mp4` format
-4. Uploads to a specified Google Drive folder
-5. Generates a CSV log with results and Drive links
-
-## Setup
-
-### 1. Install Dependencies
+## Quick Start
 
 ```bash
-pip install -r requirements.txt
+pip install yt-dlp
 ```
 
-### 2. Google Drive API Credentials
+Create a text file with one URL per line (or use a CSV), then run:
+
+```bash
+python social_video_archiver.py urls.txt
+```
+
+Videos are downloaded, renamed, and saved to `./archived/`.
+
+## Usage
+
+### Local only (default)
+
+```bash
+python social_video_archiver.py urls.txt
+```
+
+### Local with custom output directory and naming template
+
+```bash
+python social_video_archiver.py urls.txt --output-dir ./videos --template "{platform}_{creator}_{date}"
+```
+
+### Upload to Google Drive
+
+```bash
+python social_video_archiver.py urls.csv --drive-folder YOUR_FOLDER_ID
+```
+
+### Upload to Drive with custom credentials path
+
+```bash
+python social_video_archiver.py urls.csv --drive-folder YOUR_FOLDER_ID --credentials creds.json
+```
+
+## Input Formats
+
+**Plain text** -- one URL per line:
+
+```
+https://www.tiktok.com/@creator/video/7123456789
+https://www.instagram.com/reel/ABC123/
+https://youtube.com/shorts/dQw4w9WgXcQ
+```
+
+**CSV** -- the script auto-detects columns named `url`, `link`, or `video`:
+
+```csv
+url,notes
+https://www.tiktok.com/@creator/video/7123456789,save this one
+https://x.com/user/status/123456789,important thread
+```
+
+## Naming Templates
+
+Control how downloaded files are named with `--template`. Available tokens:
+
+| Token        | Description                         | Example          |
+|--------------|-------------------------------------|------------------|
+| `{creator}`  | Username / uploader                 | `dancequeen`     |
+| `{platform}` | Detected platform                   | `tiktok`         |
+| `{date}`     | Download date (YYYYMMDD)            | `20260303`       |
+| `{id}`       | Video ID from the platform          | `7123456789`     |
+| `{title}`    | Video title (from yt-dlp metadata)  | `my_cool_video`  |
+
+**Default template:** `{creator}_{platform}_{date}_{id}`
+
+Examples:
+
+```bash
+--template "{platform}_{creator}_{date}"        # tiktok_dancequeen_20260303.mp4
+--template "{creator}---{id}"                    # dancequeen---7123456789.mp4
+--template "{date}_{platform}_{title}"           # 20260303_instagram_my_cool_video.mp4
+```
+
+## Google Drive Setup (optional)
+
+Only required if you use `--drive-folder`.
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a project (or select existing)
+2. Create a project (or select an existing one)
 3. Enable the **Google Drive API** (APIs & Services > Library)
 4. Create OAuth 2.0 credentials:
    - APIs & Services > Credentials > Create Credentials > OAuth client ID
    - Application type: **Desktop app**
-   - Download the JSON file
-   - Rename to `credentials.json` and place in this directory
-
-### 3. Get Your Drive Folder ID
-
-Open your target folder in Google Drive. The folder ID is in the URL:
-```
-https://drive.google.com/drive/folders/YOUR_FOLDER_ID_HERE
-```
-
-### 4. Prepare Your CSV
-
-Create a CSV with TikTok URLs. The script auto-detects columns named `url`, `link`, or `tiktok`:
-
-```csv
-url,notes
-https://www.tiktok.com/@creator/video/123456,First video
-https://www.tiktok.com/@another/video/789012,Second video
-```
-
-See `tiktok_links_template.csv` for a template.
-
-## Usage
-
-```bash
-python tiktok_drive_uploader.py your_links.csv YOUR_DRIVE_FOLDER_ID
-```
-
-### Options
-
-```bash
-# Specify the URL column name
-python tiktok_drive_uploader.py links.csv FOLDER_ID --url-column "tiktok_url"
-
-# Custom download directory
-python tiktok_drive_uploader.py links.csv FOLDER_ID --download-dir ./tmp
-
-# Custom filename prefix (default: TTS)
-python tiktok_drive_uploader.py links.csv FOLDER_ID --prefix "CONTENT"
-
-# Custom credentials path
-python tiktok_drive_uploader.py links.csv FOLDER_ID --credentials ~/creds.json
-```
+   - Download the JSON file and save as `credentials.json` in this directory
+5. Install the Drive dependencies:
+   ```bash
+   pip install google-auth google-auth-oauthlib google-api-python-client
+   ```
+6. Get your target folder ID from the Drive URL:
+   ```
+   https://drive.google.com/drive/folders/YOUR_FOLDER_ID_HERE
+   ```
 
 ## Output
 
-- Videos uploaded as: `TTS---CreatorName_YYYYMMDD_HHMMSS.mp4`
-- Log file generated: `upload_log_YYYYMMDD_HHMMSS.csv` with URLs, filenames, Drive IDs, and links
+- Videos saved to `./archived/` (or your `--output-dir`)
+- A CSV log is generated in the output directory with columns: `url`, `creator`, `platform`, `filename`, `status`, `drive_id`, `link`, `error`
 
-## Troubleshooting
+## CLI Reference
 
-**"credentials.json not found"** - Complete the Google Drive API setup (step 2 above).
+```
+usage: social_video_archiver.py [-h] [--drive-folder FOLDER_ID]
+                                [--output-dir DIR] [--template TEMPLATE]
+                                [--credentials FILE] [--download-dir DIR]
+                                input_file
 
-**"Download failed"** - Ensure `yt-dlp` is installed (`pip install yt-dlp`). Some videos may be private or region-locked.
+positional arguments:
+  input_file            Text file (one URL per line) or CSV with URLs
 
-**"Upload failed"** - Verify your folder ID is correct and you have write access.
+optional arguments:
+  --drive-folder ID     Google Drive folder ID (omit for local-only mode)
+  --output-dir DIR      Local output directory (default: ./archived)
+  --template TPL        Naming template (default: {creator}_{platform}_{date}_{id})
+  --credentials FILE    Path to Google OAuth credentials.json
+  --download-dir DIR    Temporary download directory (default: <output-dir>/.tmp)
+```
 
 ## License
 

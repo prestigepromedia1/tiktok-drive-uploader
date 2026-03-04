@@ -1,4 +1,7 @@
-google-auth>=2.0.0
-google-auth-oauthlib>=1.0.0
-google-api-python-client>=2.0.0
+# Core (always needed)
 yt-dlp>=2024.0.0
+
+# Optional: Google Drive upload (only needed with --drive-folder)
+# google-auth>=2.0.0
+# google-auth-oauthlib>=1.0.0
+# google-api-python-client>=2.0.0

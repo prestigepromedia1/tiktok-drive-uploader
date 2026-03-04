@@ -4,10 +4,15 @@ token.pickle
 token.json
 *.pickle
 
-# Downloads
+# Downloads & archived videos
 downloads/
+archived/
+*.mp4
+*.webm
+*.mkv
 
 # Logs
+archive_log_*.csv
 upload_log_*.csv
 
 # Python

@@ -1,0 +1,9 @@
+# Social Video Archiver -- example URL list
+# One URL per line. Lines starting with # are ignored by most editors
+# but the script simply skips lines that don't start with http.
+
+https://www.tiktok.com/@charlidamelio/video/7123456789012345678
+https://www.instagram.com/reel/CxYzAbCdEfG/
+https://youtube.com/shorts/dQw4w9WgXcQ
+https://x.com/elonmusk/status/1234567890123456789
+https://www.facebook.com/watch/?v=1234567890
