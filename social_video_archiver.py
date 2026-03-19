@@ -237,8 +237,12 @@ def _find_downloaded(output_dir: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 def sanitize(name: str) -> str:
-    """Strip characters that are illegal on Windows/Drive filenames."""
-    return re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", name).strip()
+    """Strip characters that are illegal on Windows/Drive filenames.
+    Replace dots and underscores with dashes — no dots or underscores in output."""
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", name)
+    name = name.replace(".", "-").replace("_", "-")
+    name = name.strip()
+    return name
 
 
 def build_filename(template: str, *, creator: str, platform: str,
@@ -251,8 +255,11 @@ def build_filename(template: str, *, creator: str, platform: str,
         id=sanitize(video_id),
         title=sanitize(title),
     )
-    # Collapse multiple underscores / dashes from empty tokens
-    name = re.sub(r"[_\-]{2,}", "_", name).strip("_- ")
+    # Replace underscores with dashes, collapse repeated dashes (but preserve intentional --)
+    name = name.replace("_", "-")
+    # Collapse 3+ dashes down to 2
+    name = re.sub(r"-{3,}", "--", name)
+    name = name.strip("- ")
     return f"{name}.{ext}"
 
 
@@ -579,7 +586,7 @@ def main():
         if os.path.exists(final_path):
             stem = Path(new_filename).stem
             ts = datetime.now().strftime("%H%M%S")
-            new_filename = f"{stem}_{ts}.{ext}"
+            new_filename = f"{stem}-{ts}.{ext}"
             final_path = os.path.join(output_dir, new_filename)
 
         os.rename(video_path, final_path)
