@@ -455,9 +455,9 @@ def main():
     )
     parser.add_argument(
         "--template",
-        default="{creator}_{platform}_{date}_{id}",
+        default="TTS--{creator}",
         help='Naming template.  Tokens: {creator}, {platform}, {date}, {id}, {title}  '
-             '(default: "{creator}_{platform}_{date}_{id}")',
+             '(default: "TTS--{creator}")',
     )
     parser.add_argument(
         "--credentials",
@@ -582,11 +582,13 @@ def main():
         )
 
         final_path = os.path.join(output_dir, new_filename)
-        # Avoid overwriting existing files
+        # Avoid overwriting existing files -- append incrementing counter
         if os.path.exists(final_path):
             stem = Path(new_filename).stem
-            ts = datetime.now().strftime("%H%M%S")
-            new_filename = f"{stem}-{ts}.{ext}"
+            counter = 2
+            while os.path.exists(os.path.join(output_dir, f"{stem}-{counter}.{ext}")):
+                counter += 1
+            new_filename = f"{stem}-{counter}.{ext}"
             final_path = os.path.join(output_dir, new_filename)
 
         os.rename(video_path, final_path)
